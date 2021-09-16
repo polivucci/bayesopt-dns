@@ -1,0 +1,73 @@
+#
+# INCOMPACT 3D parameters - 3D Turbulent channel flow
+#
+256    #nx
+139    #ny
+256    #nz
+0      #nphi
+1      #p_row
+2      #p_col
+#
+# INCOMPACT 3D Flow parameters
+#
+4.523      #xlx/pi    # Lx (Adimensional size in x-direction)
+2.00000919696813      #yly       # Ly (Adimensional size in y-direction)
+2.26   #zlz/pi    # Lz (Adimensional size in z-direction)
+4200.   #re        # Reynolds number
+0.125   #noise     # Intensity for initial condition (0.01=1%,1=100%) (t=0)
+0.0025   #dt        # Time step
+#
+# INCOMPACT3D Flow configuration
+#
+1      #iin        # Initial condition (0: no-noise, 1: white noise, 2: fixed white noise)
+1      #ifirst     # First iteration
+4  #ilast      # Last iteration
+1      #nscheme    # Temporal scheme (1:AB2, 2:AB3, 3: RK3, 4:KN+AB3 (-DIMPLICIT flag required))
+2       #istret     # y-mesh refinement (0:no, 1:center, 2:both sides, 3:bottom)
+0.259065151        #beta       # Refinement parameter
+#
+# INCOMPACT 3D Disc Forcing parameters
+#
+3.38        #disc_D
+0.005       #disc_thk
+1.6         #disc_dm
+0.05        #gap
+0.1         #d_h
+3.75E-07    #t_b
+0.0         #kJ
+8           #n_discs
+t           #ts_flag
+0.09        #t_stall
+1.1         #w_max/wss
+0.5         #w_thresh/wss
+#
+# INCOMPACT 3D File parameters
+#
+1      # ilit      # Read initial flow field? (0:no, 1:yes)
+2  # isave     # Frequency for writing backup file (sauve.dat)
+2   # imodulo   # Frequency for visualization for VISU_INSTA
+.11111111111111111111 # wrotation
+0   # irotation
+20001  # initstats1
+40001  # initstats2
+#
+# NUMERICAL DISSIPATION
+#
+0      #jLES       #LES Model (0:DNS, 1:iLES, 2:Explicit Simple Smagorinsky, 3:Explicit Wall-Adaptive LES, 4: Explicit Dynamic Smagorinsky LES)
+4.     # npi2
+#
+# INCOMPACT 3D Body (old school)
+#
+0      #ivirt # IBM? (0:no-IBM, 1: old school, 2: Lagrangian Poly)
+1      #ncil #Observe the variable nobjmax
+5.     #cex(ncil)# X-centre position of the solid body
+6.     #cey(ncil)# Y-centre position of the solid body
+0.5    #ra   # Radius of the solid body
+#
+# INCOMPACT 3D Forcing with Lagrangian Polynomials
+#
+0      # IBM with Lagrangian polynomials ? (0: no, 1: yes)                  [ilag]
+2      # The highest number of fluid-points at each boundary (0, 1, 2 or 3) [npif]
+1      # First fluid-point jump ? (0: no, 1: yes=advised)                   [izap]
+10     #nraf
+1      #nobjmax

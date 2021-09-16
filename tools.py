@@ -1,9 +1,10 @@
 import numpy as np
-from dns import dns
 
-def function_evaluation(X: np.ndarray, X_transform=None, Y_transform=None) -> tuple:
+class function_evaluation():
     '''!
     Wrapper around the external evaluation of the cost function.
+
+    @param external_solver_interface: function that calls an external solver.
 
     @param X: the evaluation coordinates.
     @param X_transform: optional parameter transformation.
@@ -12,35 +13,41 @@ def function_evaluation(X: np.ndarray, X_transform=None, Y_transform=None) -> tu
     @return: tuple containing the objective and the constraint value.
     '''
 
-    if X_transform is not None:
-        # Inverse-transform data to get physical values for simulaton input:
-        X = X_transform(X)
+    def __init__(self, external_solver_interface=None, X_transform=None, Y_transform=None):
+        self.external_solver_interface = external_solver_interface
+        self.X_transform = X_transform
+        self.Y_transform = Y_transform
 
-    # Evaluate DNS simulation:
-    Y_cost, Y_constraint = dns(X)
-    
-    if Y_transform is not None:
-        # Transform prediction value:
-        (Y_cost, Y_constraint) = Y_transform((Y_cost, Y_constraint))
+    def __call__(self, X):
 
-    return Y_cost, Y_constraint
+        if self.X_transform is not None:
+            # Reverse-transform data to get physical values for simulaton input:
+            X = self.X_transform.bwd(X)
+
+        # Evaluate DNS simulation:
+        Y_cost, Y_constraint = self.external_solver_interface(X)
+        
+        if self.Y_transform is not None:
+            # Transform prediction value:
+            (Y_cost, Y_constraint) = self.Y_transform.fwd((Y_cost, Y_constraint))
+
+        return Y_cost, Y_constraint
 
 
-def random_exploration(space: 'ParameterSpace', initial_data_points: int):
+def random_exploration(space: 'ParameterSpace', initial_data_points: int, function_evaluation):
     '''!
     Parameter-space exploration via Latin hypercube sampling.
     '''
     
     print('Evaluating '+str(initial_data_points)+' intial designs ... ')
-    from emukit.experimental_design.model_free.latin_design import LatinDesign
+    from emukit.core.initial_designs.latin_design import LatinDesign
     design = LatinDesign(space) 
     X = design.get_samples(initial_data_points)
     
-    Y_cost, Y_constraint = function_evaluation(X, 
-                                               X_transform=X_transform,
-                                               Y_transform=Y_transform)
+    Y_cost, Y_constraint = function_evaluation(X)
 
     return X, Y_cost, Y_constraint
+
 
 def read_examples(csv_file: str):
     '''
@@ -53,7 +60,7 @@ def read_examples(csv_file: str):
     return X, Y_cost, Y_constraint
 
 
-def bo_model(X, Y_cost, Y_constraint):
+def bo_model(X, Y_cost, Y_constraint, space):
     '''
     Builds GP model, acquisition function and sets up BO loop based on input data.
     '''

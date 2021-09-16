@@ -5,9 +5,10 @@ class data_transform():
   Base transform class.
   '''
   def __init__(self, *args, **kwargs):
+    pass
 
   def fwd(self, X):
-      '''
+    '''
     Forward transform.
     '''
     pass
@@ -52,8 +53,9 @@ class quadratic(data_transform):
   '''!
   Quadratic transformation for Tm.
   '''
-  def __init__(self, quadratic_constants: tuple):
-
+  def __init__(self, constants: tuple):
+    self.constants = constants
+    self.a = self.constants
 
   def fwd(self, X):
     X_out = np.copy(X)

@@ -1,14 +1,13 @@
 import numpy as np
 import os
-from pproc import pproc_simulation
 
-def dns(X) -> np.ndarray:
+def dns(X: np.ndarray) -> np.ndarray:
   '''!
-  Interface with the external DNS solver.
+  Interface with the external solver Incompact3D.
 
   @param X: the control parameter values.
 
-  @return: a ndarray containing the objective and the constraint value.
+  @return: ndarray containing the cost and the constraint value(s).
   '''
 
   global ncase
@@ -28,11 +27,12 @@ def dns(X) -> np.ndarray:
     except:
       ncase=1
 
+    # Create new numerical case from the template 'base_case':
     name_case='c'+str(ncase).zfill(3)+"/"
     path_case=path_solver+name_case
-    os.system("cp -r "+path_solver+"basecase/ "+path_case) #create new case
+    os.system("cp -r "+path_solver+"base_case/ "+path_case)
 
-    # Write parameters into incompact3d.prm:
+    # Write parameters into the new case's configuration file 'BC-Channel-flow.prm':
     with open(path_case+"BC-Channel-flow.prm", "r") as f:
       prm = f.readlines()
     prm[39]=str(X[j,2])+'  #t_stall\n'
@@ -43,15 +43,14 @@ def dns(X) -> np.ndarray:
         f.write(line)
 
     try:
-      # Submit job:
       print('Submitting job '+str(ncase)+' ... ')
-      # os.system("cd "+path_case+"; mpirun -np 2 ./incompact3d > log.inc3d")
-      os.system("cd "+path_case+"; qsub -Wblock=true -N c"+str(ncase).zfill(3)+" run_job.pbs")
+      # Submit batch job via script 'chan-discs-onoff.pbs':
+      os.system("cd "+path_case+"; qsub -Wblock=true -N c"+str(ncase).zfill(3)+" chan-discs-onoff.pbs")
       try:
-      #post-processing to evaluate objective:
-      pproc = pproc_simulation( D=D, pathin=path_case )
-      cost[j]=pproc["cost"]
-      constraint[j]=pproc["constraint"]
+        # Post-process the raw simulation data to evaluate cost and constraint:
+        pproc = pproc_simulation( D=D, pathin=path_case )
+        cost[j]=pproc["cost"]
+        constraint[j]=pproc["constraint"]
       except:
         cost[j]=float('nan')
         constraint[j]=float('nan')
@@ -62,7 +61,7 @@ def dns(X) -> np.ndarray:
       print('DNS '+str(ncase)+' not successful !')
 
     with open("output.dat", 'a') as f:
-      if (ncase==1): f.write( ("%s\t\t"*6+"\n") % ('# case','x','y','z','obj','w/wss') )
+      if (ncase==1): f.write( ("%s\t\t"*6+"\n") % ('# case','x0','x1','x2','cost','constraint') )
       f.write(("%0.3i\t"+"%6.6f\t"*5+"\n") % (
                     ncase, X_out[j,0], X_out[j,1], X_out[j,2], cost[j], constraint[j]) )
 
@@ -105,10 +104,10 @@ def pproc_simulation( D: float=None, n_discs: int=16, pathin='./' ) -> dict:
 
       power_disc_avg=power_disc_avg+np.mean(pwrd)
 
-  power_pump_avg=np.mean(pwrp[n_ini:])
-  power_disc_avg=power_disc_avg/n_discs
-  w_mean=w_mean/n_discs
-  power_avg=power_pump_avg+power_disc_avg
+  power_pump_avg = np.mean(pwrp[n_ini:])
+  power_disc_avg = power_disc_avg/n_discs
+  w_mean = w_mean/n_discs
+  power_avg = power_pump_avg+power_disc_avg
 
   pproc = {
   "cost"            : power_avg/P0,                       # this is tot pwr
@@ -120,3 +119,15 @@ def pproc_simulation( D: float=None, n_discs: int=16, pathin='./' ) -> dict:
   }
 
   return pproc
+
+
+def branin(X):
+  '''
+  Branin function for unit tests.
+  '''
+  from emukit.test_functions.branin import _branin
+
+  cost=_branin(X)                       #Branin
+  constraint=-1*np.ones(cost.shape)     #C<0 always satisfied
+
+  return cost, constraint

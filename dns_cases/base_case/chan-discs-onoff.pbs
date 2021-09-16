@@ -1,0 +1,11 @@
+#!/bin/bash
+#$ -l h_rt=06:15:00
+#$ -l mem=10G
+#$ -l rmem=8G
+#$ -pe openmpi-ib 64
+#$ -m be
+#$ -M polivucci1@sheffield.ac.uk
+
+module load mpi/openmpi
+
+mpirun -np 64 ./incompact3d > log.inc3d
