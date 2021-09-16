@@ -54,7 +54,7 @@ def read_examples(csv_file: str):
     Read in examples from data file.
     '''
     print('Reading in training data ... ')
-    Xx, Xy, Xz, Y_cost, W, Y_constraint = np.genfromtxt(csv_file, unpack=True)
+    Xx, Xy, Xz, Y_cost, Y_constraint = np.genfromtxt(csv_file, unpack=True)
     X=np.array([Xx, Xy, Xz]).transpose()
 
     return X, Y_cost, Y_constraint
