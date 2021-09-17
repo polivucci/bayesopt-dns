@@ -1,4 +1,4 @@
-# dns-emukit-optimizer
+# bayesopt-dns
 
 The code hosted in this repository is used to solve a flow control optimisation problem through the Bayesian Optimization tool EmuKit, coupled to the direct numerical simulation (DNS) solver Incompact3d.
 

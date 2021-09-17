@@ -1,13 +1,26 @@
 import numpy as np
 import os
 
-def dns(X: np.ndarray) -> np.ndarray:
+
+def branin(X: np.ndarray) -> tuple:
+  '''
+  Branin function for tests.
+  '''
+  from emukit.test_functions.branin import _branin
+
+  cost=_branin(X)                       #Branin
+  constraint=-1*np.ones(cost.shape)     #C<0 always satisfied
+
+  return cost, constraint
+
+
+def dns(X: np.ndarray) -> tuple:
   '''!
   Interface with the external solver Incompact3D.
 
-  @param X: the control parameter values.
+  @param X: (m,n) ndarray containing m combinations of n control parameters.
 
-  @return: ndarray containing the cost and the constraint value(s).
+  @return: couple of (m,1) ndarrays containing cost and constraint.
   '''
 
   global ncase
@@ -19,8 +32,7 @@ def dns(X: np.ndarray) -> np.ndarray:
   cost=np.empty(n,float)
   constraint=np.empty(n,float)
 
-  # Loop to evaluate n different parameter combinations 
-  # (useful for initial exploration):
+  # Loop to evaluate n different parameter combinations (cases):
   for j in range(0,n):
     try:
       ncase+=1
@@ -33,37 +45,41 @@ def dns(X: np.ndarray) -> np.ndarray:
     os.system("cp -r "+path_solver+"base_case/ "+path_case)
 
     # Write parameters into the new case's configuration file 'BC-Channel-flow.prm':
-    with open(path_case+"BC-Channel-flow.prm", "r") as f:
+    with open(path_case+"BC-Channel-flow.prm", "r") as f: 
       prm = f.readlines()
-    prm[39]=str(X[j,2])+'  #t_stall\n'
-    prm[40]=str(X[j,0])+'  #w_max/wss\n'
-    prm[41]=str(X[j,1])+'  #w_thresh/wss\n'
-    with open(path_case+"BC-Channel-flow.prm", 'w') as f:
+      
+      prm[39]=str(X[j,2])+'  #t_stall\n'
+      prm[40]=str(X[j,0])+'  #w_max/wss\n'
+      prm[41]=str(X[j,1])+'  #w_thresh/wss\n'
+      
       for line in prm:
         f.write(line)
 
     try:
-      print('Submitting job '+str(ncase)+' ... ')
+      print('Submitting case '+str(ncase)+' ... ')
       # Submit batch job via script 'chan-discs-onoff.pbs':
-      os.system("cd "+path_case+"; qsub -Wblock=true -N c"+str(ncase).zfill(3)+" chan-discs-onoff.pbs")
+      os.system("cd "+path_case+";"+
+           "qsub -Wblock=true -N c"+str(ncase).zfill(3)+" chan-discs-onoff.pbs")
       try:
-        # Post-process the raw simulation data to evaluate cost and constraint:
+        # Evaluate cost and constraint from simulation data:
+        print('Post-processing case '+str(ncase)+' ... ')
         pproc = pproc_simulation( D=D, pathin=path_case )
         cost[j]=pproc["cost"]
         constraint[j]=pproc["constraint"]
       except:
         cost[j]=float('nan')
         constraint[j]=float('nan')
-        print('Design '+str(ncase)+': pproc not successful !')
+        print('Case '+str(ncase)+': Post-processing not successful !')
     except:
       cost[j]=float('nan')
       constraint[j]=float('nan')
       print('DNS '+str(ncase)+' not successful !')
 
-    with open("output.dat", 'a') as f:
-      if (ncase==1): f.write( ("%s\t\t"*6+"\n") % ('# case','x0','x1','x2','cost','constraint') )
-      f.write(("%0.3i\t"+"%6.6f\t"*5+"\n") % (
-                    ncase, X_out[j,0], X_out[j,1], X_out[j,2], cost[j], constraint[j]) )
+    # with open("output.dat", 'a') as f:
+    #   if (ncase==1): f.write( ("%s\t\t"*6+"\n") % 
+    #                              ('# case','x0','x1','x2','cost','constraint') )
+    #   f.write( ("%0.3i\t"+"%6.6f\t"*5+"\n") % 
+    #        (ncase, X_out[j,0], X_out[j,1], X_out[j,2], cost[j], constraint[j]) )
 
   out = np.array([cost.reshape(n,1)[:,0], constraint.reshape(n,1)[:,0]])
   return out[:,0,None], out[:,1,None]
@@ -71,14 +87,15 @@ def dns(X: np.ndarray) -> np.ndarray:
 
 def pproc_simulation( D: float=None, n_discs: int=16, pathin='./' ) -> dict:
   '''!
-  This function processes the raw simulation output and outputs cost and constraint.
+  This function processes the raw simulation output and returns cost 
+  and constraint.
 
-  @param D
-  @param n_discs
+  @param D:       disc diameter
+  @param n_discs: number of discs
+  @param pathin:  simulation data directory.
 
-  @return pproc: dictionary containing post-processing output.
+  @return: dictionary containing the post-processing output.
   '''
-  power_avg=0.;  power_pump_avg=0.;  power_disc_avg=0.; w_mean=0.
 
   dudy = np.loadtxt(pathin+'raw-data/wall_grad.dat',usecols=(1,))
   t = np.loadtxt(pathin+'raw-data/disc_04.dat',usecols=(0,))
@@ -87,6 +104,8 @@ def pproc_simulation( D: float=None, n_discs: int=16, pathin='./' ) -> dict:
   pwrp = 0.5*D*D*cf*Ub*Ub*Ub  # pumping power per flow unit
   P0 = 0.5*p0*D*D             # reference case total power on per flow unit
 
+  power_avg=0.;  power_pump_avg=0.;  power_disc_avg=0.; w_mean=0.
+  
   for j in range(1,n_discs/2+1):
     for a in ('','_up'):
       tm=np.loadtxt(pathin+'raw-data/disc'+a+'_0'+str(j)+'.dat',usecols=(1,))
@@ -109,25 +128,11 @@ def pproc_simulation( D: float=None, n_discs: int=16, pathin='./' ) -> dict:
   w_mean = w_mean/n_discs
   power_avg = power_pump_avg+power_disc_avg
 
-  pproc = {
-  "cost"            : power_avg/P0,                       # this is tot pwr
-  "constraint"      : (1-power_pump_avg)/power_disc_avg,  # this is G
-  "power_avg"       : power_avg/P0,
-  "power_pump_avg"  : power_pump_avg/P0,
-  "power_disc_avg"  : power_disc_avg/P0,
-  "w_mean"          : w_mean/W
-  }
-
-  return pproc
-
-
-def branin(X):
-  '''
-  Branin function for unit tests.
-  '''
-  from emukit.test_functions.branin import _branin
-
-  cost=_branin(X)                       #Branin
-  constraint=-1*np.ones(cost.shape)     #C<0 always satisfied
-
-  return cost, constraint
+  return {
+          "cost"            : power_avg/P0,                      # = total pwr
+          "constraint"      : (1-power_pump_avg)/power_disc_avg, # = G
+          "power_avg"       : power_avg/P0,
+          "power_pump_avg"  : power_pump_avg/P0,
+          "power_disc_avg"  : power_disc_avg/P0,
+          "w_mean"          : w_mean/W
+         }

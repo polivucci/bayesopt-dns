@@ -2,6 +2,7 @@ import numpy as np
 
 from emukit.core.loop import UserFunctionResult
 from tools import read_examples,random_exploration,function_evaluation,bo_model
+from post_proc_opti import model_to_vtk
 from configuration import *
 
 if __name__=="__main__":
@@ -23,11 +24,11 @@ if __name__=="__main__":
     
     # Initialise GP model on the training data:
     bo = bo_model(X, Y_cost, Y_constraint, space)
-    n_points_ini = bo.loop_state.X.shape[0]
-
+    
+    # Running opt loop for 1 iteration (based on training data only) + n_iterations,
+    # so that eventually we get n_iterations new points.
     results = None
-    print('Running optimization for '+str(n_iterations)+' iterations ... \n')
-    for n in range(n_iterations):
+    for n in range(1+n_iterations):
 
         # Generate next evaluation point:
         X_new = bo.get_next_points(results)
@@ -45,10 +46,7 @@ if __name__=="__main__":
     Y_constraint = bo.loop_state.Y_constraint
 
     # Check we got the correct number of points
-    print(bo.loop_state.X.shape[0])
-    print(n_iterations)
-    print(n_points_ini)
-    assert bo.loop_state.X.shape[0] == n_iterations + n_points_ini
+    assert bo.loop_state.X.shape[0] == n_iterations + n_initial_data_points
 
     # Export model to 3D VTK files for visualisation:
-    model_to_vtk(bo)
+    if (bo.loop_state.X.shape[1]>=3) : model_to_vtk(bo)
